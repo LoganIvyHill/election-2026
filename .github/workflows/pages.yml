@@ -1,0 +1,32 @@
+name: Deploy dashboard
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.first.outputs.page_url || steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      # deploy-pages sometimes can't see the artifact uploaded seconds earlier ("No artifacts
+      # named github-pages"); wait and try again before failing (and emailing) the run.
+      - id: first
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+      - if: steps.first.outcome == 'failure'
+        run: sleep 30
+      - id: deployment
+        if: steps.first.outcome == 'failure'
+        uses: actions/deploy-pages@v4
